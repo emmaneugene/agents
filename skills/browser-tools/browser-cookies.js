@@ -13,15 +13,23 @@
 
 import puppeteer from "puppeteer-core";
 
+const args = process.argv.slice(2);
+let port = "9222";
+
+if (args[0] === "--port") {
+	port = args[1];
+	args.splice(0, 2);
+}
+
 const b = await Promise.race([
 	puppeteer.connect({
-		browserURL: "http://localhost:9222",
+		browserURL: `http://localhost:${port}`,
 		defaultViewport: null,
 	}),
 	new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 5000)),
 ]).catch((e) => {
 	console.error("✗ Could not connect to browser:", e.message);
-	console.error("  Run: browser-start.js");
+	console.error(`  Run: cdp start --port ${port}`);
 	process.exit(1);
 });
 
