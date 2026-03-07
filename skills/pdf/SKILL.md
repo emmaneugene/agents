@@ -9,6 +9,12 @@ description: Use this skill whenever the user wants to do anything with PDF file
 
 This guide covers essential PDF processing operations using Python libraries and command-line tools. For advanced features, JavaScript libraries, and detailed examples, see REFERENCE.md. If you need to fill out a PDF form, read FORMS.md and follow its instructions.
 
+## Prerequisites
+
+- `uv` — Python package runner (`command -v uv`)
+- For OCR: `tesseract` (`command -v tesseract`)
+- For CLI tools: `qpdf`, `pdftotext` from poppler-utils (`command -v qpdf pdftotext`)
+
 ## Quick Start
 
 ```python

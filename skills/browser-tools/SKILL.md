@@ -9,13 +9,17 @@ Chrome DevTools Protocol tools for agent-assisted web automation.
 
 > **Note:** Most browser interactions like navigation, JS eval, screenshots, clicking, form filling, network inspection, etc should be handled by the **chrome-devtools MCP**. This skill provides browser instance management and additional functionality.
 
+## Prerequisites
+
+- Node.js and npm (`command -v node npm`)
+
 ## Setup
 
 Run once before first use:
 
 ```bash
 cd {baseDir}/browser-tools
-bun install
+npm install
 ```
 
 ## Manage Browser Instances

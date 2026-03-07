@@ -3,6 +3,10 @@ name: tmux-tools
 description: "Use tmux to run long-lived background tasks (servers, watchers, log tailing), execute tasks in parallel, or create collaborative sessions the user can audit. Load this skill when a task involves background processes, parallel execution, persistent monitoring, or when the user wants visibility into agent-run commands."
 ---
 
+## Prerequisites
+
+- `tmux` (`command -v tmux`)
+
 ## When to use `tmux`
 
 ### 1. Background tasks that outlive a single command
