@@ -3,6 +3,3 @@ node_modules/
 
 # Debug files
 debug-*.png
-
-# npm lockfile (using bun instead)
-package-lock.json
