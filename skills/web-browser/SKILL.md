@@ -1,5 +1,5 @@
 ---
-name: browser-tools
+name: web-browser
 description: Browser automation via Chrome DevTools Protocol. Navigate, evaluate JS, take screenshots, pick elements, extract content, and inspect network/console activity.
 ---
 

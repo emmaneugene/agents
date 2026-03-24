@@ -1,5 +1,5 @@
 {
-  "name": "browser-tools",
+  "name": "web-browser",
   "version": "2.0.0",
   "type": "module",
   "description": "CDP-based browser automation tools for agents",
