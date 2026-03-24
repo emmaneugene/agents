@@ -1,5 +1,5 @@
 ---
-name: git-catchup
+name: catchup
 description: >
   Fetches remote and summarises what changed on updated branches since last
   fetch. Use when asked to catch up on a repo, see what changed upstream,
@@ -11,37 +11,47 @@ description: >
 Fetch the remote and produce a scannable summary of what changed on each
 updated branch.
 
+## Script
+
+A single helper script with two subcommands:
+
+| Command | Purpose | Output |
+|---|---|---|
+| `catchup.py fetch` | Snapshot → fetch → compare | TSV: `STATUS OLD_SHA NEW_SHA REF` per changed branch |
+| `catchup.py range <ref>` | Look up saved SHAs for one branch | `OLD_SHA..NEW_SHA REF N_COMMITS` |
+
+Always run these rather than reimplementing the snapshot logic manually.
+
 ## Workflow
 
 ### 1. Snapshot & Fetch
 
 ```bash
-# Save current remote ref positions
-git for-each-ref --format='%(refname) %(objectname)' refs/remotes/ > /tmp/catchup-before.txt
-
-# Fetch everything, prune stale refs
-git fetch --all --prune 2>&1
-
-# Save new positions
-git for-each-ref --format='%(refname) %(objectname)' refs/remotes/ > /tmp/catchup-after.txt
+uv run skills/catchup/catchup.py fetch
 ```
 
-Compare the two files to find branches where the SHA changed or that are
-newly created. Deleted branches can be noted but don't need summaries.
+Output is TSV with one line per changed branch:
+```
+updated  <old-sha>  <new-sha>  refs/remotes/origin/main
+new      0000...    <new-sha>  refs/remotes/origin/feature-x
+deleted  <old-sha>  0000...    refs/remotes/origin/old-branch
+```
 
-### 2. Filter
+Default excluded patterns: `dependabot/`, `renovate/`, `snyk-`, `gh-pages`.
+Pass extra patterns with `--exclude`:
+```bash
+uv run skills/catchup/catchup.py fetch --exclude "release-" --exclude "wip/"
+```
 
-Exclude branches whose name matches any of these patterns (case-insensitive):
+To get the commit range for a specific branch:
+```bash
+uv run skills/catchup/catchup.py range origin/main
+# → <old-sha>..<new-sha>  refs/remotes/origin/main  7
+```
 
-- `dependabot/`
-- `renovate/`
-- `snyk-`
-- `gh-pages`
+Deleted branches can be noted but don't need summaries.
 
-If the user provided `$1`, treat it as a **comma-separated list of
-additional patterns** to exclude (substring match is fine).
-
-### 3. Present the list
+### 2. Present the list
 
 For each updated branch, show: **branch name** and **number of new commits**.
 
@@ -51,7 +61,7 @@ Sort by most-recent commit date, descending.
 - **> 5 branches**: show the list and ask the user which ones to
   summarise. Accept numbers, branch names, `all`, or a grep pattern.
 
-### 4. Summarise each selected branch
+### 3. Summarise each selected branch
 
 For each branch, look at **at most 20** new commits (the most recent ones
 if there are more).
@@ -78,7 +88,7 @@ if there are more).
 - Concise **bullets** for notable changes
 - Mention of any large-scale operations (renames, deletions, new modules)
 
-### 5. Output format
+### 4. Output format
 
 ```
 ## <branch-name> (N new commits)
