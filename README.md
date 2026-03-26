@@ -1,1 +1,5 @@
-These are just my personal skills and MCPs for now
+Agent-agnostic primitives for clankers. Currently:
+
+- System prompt
+- MCP servers
+- Skills
