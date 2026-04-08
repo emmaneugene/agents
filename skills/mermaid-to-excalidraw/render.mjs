@@ -26,12 +26,15 @@ const DIST_DIR = path.join(SKILL_DIR, "dist");
 // ── Read mermaid definition ──────────────────────────────────────────────────
 
 async function readStdin() {
+  if (process.stdin.isTTY) {
+    return "";
+  }
+
   return new Promise((resolve) => {
     let data = "";
     process.stdin.setEncoding("utf8");
     process.stdin.on("data", (chunk) => (data += chunk));
     process.stdin.on("end", () => resolve(data.trim()));
-    if (process.stdin.isTTY) resolve("");
   });
 }
 
@@ -56,10 +59,21 @@ if (!fs.existsSync(DIST_DIR)) {
 // which signals the parent to print it and exit.
 
 if (!process.env.MERMAID_RENDER_DAEMON) {
-  const child = spawn(process.execPath, [fileURLToPath(import.meta.url), definition], {
-    detached: true,
-    stdio: ["ignore", "pipe", "ignore"],
-    env: { ...process.env, MERMAID_RENDER_DAEMON: "1" },
+  let child;
+  try {
+    child = spawn(process.execPath, [fileURLToPath(import.meta.url)], {
+      detached: true,
+      stdio: ["pipe", "pipe", "ignore"],
+      env: { ...process.env, MERMAID_RENDER_DAEMON: "1" },
+    });
+  } catch (error) {
+    console.error(`Failed to start daemon: ${error.message}`);
+    process.exit(1);
+  }
+
+  child.on("error", (error) => {
+    console.error(`Failed to start daemon: ${error.message}`);
+    process.exit(1);
   });
 
   let out = "";
@@ -70,6 +84,8 @@ if (!process.env.MERMAID_RENDER_DAEMON) {
     child.unref();
     process.exit(0);
   });
+
+  child.stdin.end(definition);
 } else {
 
 // ── MIME types ───────────────────────────────────────────────────────────────
@@ -91,8 +107,17 @@ const MIME = {
 
 const STORAGE_KEY = "mermaid-to-excalidraw-definition";
 
+function serializeForInlineScript(value) {
+  return JSON.stringify(value)
+    .replace(/</g, "\\u003C")
+    .replace(/>/g, "\\u003E")
+    .replace(/&/g, "\\u0026")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
+}
+
 function buildBootstrapScript(def) {
-  const defJson = JSON.stringify(def);
+  const defJson = serializeForInlineScript(def);
   return `
 <script id="__mermaid-skill-bootstrap__">
 (function () {
@@ -136,7 +161,7 @@ function buildBootstrapScript(def) {
 // ── HTTP server ───────────────────────────────────────────────────────────────
 
 const server = http.createServer((req, res) => {
-  let urlPath = req.url.split("?")[0];
+  let urlPath = (req.url || "/").split("?")[0];
   try {
     urlPath = decodeURIComponent(urlPath);
   } catch (_) {}
@@ -149,10 +174,11 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  const filePath = urlPath === "/" ? "index.html" : urlPath.replace(/^\//, "");
-  const fullPath = path.join(DIST_DIR, filePath);
+  const filePath = urlPath === "/" ? "index.html" : urlPath.replace(/^\/+/, "");
+  const fullPath = path.resolve(DIST_DIR, filePath);
+  const relativePath = path.relative(DIST_DIR, fullPath);
 
-  if (!fullPath.startsWith(DIST_DIR)) {
+  if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
     res.writeHead(403);
     res.end("Forbidden");
     return;
