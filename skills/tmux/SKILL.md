@@ -15,20 +15,21 @@ SOCKET_DIR=${TMPDIR:-/tmp}/agent-tmux-sockets  # well-known dir for all agent so
 mkdir -p "$SOCKET_DIR"
 SOCKET="$SOCKET_DIR/agent.sock"                # keep agent sessions separate from your personal tmux
 SESSION=agent-python                           # slug-like names; avoid spaces
-tmux -S "$SOCKET" new -d -s "$SESSION" -n shell
-tmux -S "$SOCKET" send-keys -t "$SESSION":0.0 -- 'python3 -q' Enter
-tmux -S "$SOCKET" capture-pane -p -J -t "$SESSION":0.0 -S -200  # watch output
-tmux -S "$SOCKET" kill-session -t "$SESSION"                   # clean up
+tmux -f /dev/null -S "$SOCKET" new -d -s "$SESSION" -n shell
+PANE=$(tmux -f /dev/null -S "$SOCKET" list-panes -t "$SESSION" -F '#{session_name}:#{window_index}.#{pane_index}' | head -n1)
+tmux -f /dev/null -S "$SOCKET" send-keys -t "$PANE" -- 'python3 -q' Enter
+tmux -f /dev/null -S "$SOCKET" capture-pane -p -J -t "$PANE" -S -200  # watch output
+tmux -f /dev/null -S "$SOCKET" kill-session -t "$SESSION"              # clean up
 ```
 
 After starting a session ALWAYS tell the user how to monitor the session by giving them a command to copy paste:
 
 ```
 To monitor this session yourself:
-  tmux -S "$SOCKET" attach -t agent-lldb
+  tmux -f /dev/null -S "$SOCKET" attach -t agent-lldb
 
 Or to capture the output once:
-  tmux -S "$SOCKET" capture-pane -p -J -t agent-lldb:0.0 -S -200
+  tmux -f /dev/null -S "$SOCKET" capture-pane -p -J -t "$PANE" -S -200
 ```
 
 This must ALWAYS be printed right after a session was started and once again at the end of the tool loop.  But the earlier you send it, the happier the user will be.
@@ -40,8 +41,15 @@ This must ALWAYS be printed right after a session was started and once again at 
 
 ## Targeting panes and naming
 
-- Target format: `{session}:{window}.{pane}`, defaults to `:0.0` if omitted. Keep names short (e.g., `agent-py`, `agent-gdb`).
-- Use `-S "$SOCKET"` consistently to stay on the private socket path. If you need user config, drop `-f /dev/null`; otherwise `-f /dev/null` gives a clean config.
+- Target format: `{session}:{window}.{pane}`. Keep names short (e.g., `agent-py`, `agent-gdb`).
+- Use `-S "$SOCKET"` consistently to stay on the private socket path.
+- Prefer `-f /dev/null` so user tmux config does not affect indexing, renaming, or bindings.
+- Do **not** assume the first pane is `:0.0` unless you are using `-f /dev/null` or have confirmed it with `list-panes`.
+- After creating a session, discover the pane target with:
+  ```bash
+  tmux -f /dev/null -S "$SOCKET" list-panes -t "$SESSION" -F '#{session_name}:#{window_index}.#{pane_index}'
+  ```
+- If you intentionally use user config instead of `-f /dev/null`, `base-index` and `pane-base-index` may start at `1`, so hardcoded `:0.0` targets may fail.
 - Inspect: `tmux -S "$SOCKET" list-sessions`, `tmux -S "$SOCKET" list-panes -a`.
 
 ## Finding sessions
@@ -58,9 +66,10 @@ This must ALWAYS be printed right after a session was started and once again at 
 ## Watching output
 
 - Capture recent history (joined lines to avoid wrapping artifacts): `tmux -S "$SOCKET" capture-pane -p -J -t target -S -200`.
+- Prefer using the discovered pane target rather than assuming `session:0.0`.
 - For continuous monitoring, poll with the helper script (below) instead of `tmux wait-for` (which does not watch pane output).
-- You can also temporarily attach to observe: `tmux -S "$SOCKET" attach -t "$SESSION"`; detach with `Ctrl+b d`.
-- When giving instructions to a user, **explicitly print a copy/paste monitor command** alongside the action don't assume they remembered the command.
+- You can also temporarily attach to observe: `tmux -f /dev/null -S "$SOCKET" attach -t "$SESSION"`; detach with `Ctrl+b d`.
+- When giving instructions to a user, **explicitly print a copy/paste monitor command** alongside the action
 
 ## Spawning Processes
 
@@ -73,7 +82,7 @@ Some special rules for processes:
 
 - Use timed polling to avoid races with interactive tools. Example: wait for a Python prompt before sending code:
   ```bash
-  ./scripts/wait-for-text.sh -t "$SESSION":0.0 -p '^>>>' -T 15 -l 4000
+  ./scripts/wait-for-text.sh -t "$PANE" -p '^>>>' -T 15 -l 4000
   ```
 - For long-running commands, poll for completion text (`"Type quit to exit"`, `"Program exited"`, etc.) before proceeding.
 
@@ -94,7 +103,7 @@ Some special rules for processes:
 `./scripts/wait-for-text.sh` polls a pane for a regex (or fixed string) with a timeout. Works on Linux/macOS with bash + tmux + grep.
 
 ```bash
-./scripts/wait-for-text.sh -t session:0.0 -p 'pattern' [-F] [-T 20] [-i 0.5] [-l 2000]
+./scripts/wait-for-text.sh -t target-pane -p 'pattern' [-F] [-T 20] [-i 0.5] [-l 2000]
 ```
 
 - `-t`/`--target` pane target (required)
