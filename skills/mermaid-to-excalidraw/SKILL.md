@@ -29,6 +29,10 @@ EOF
 
 A local server starts, opens the diagram in the default browser as an editable Excalidraw canvas, and prints the URL. The user clicks **"⏹ Stop Server"** when done.
 
+## Mermaid label tips
+
+- **Line breaks:** `\n` is a literal backslash-n in Mermaid labels — it does **not** create a new line. Always use `<br/>` for line breaks inside node labels, e.g. `A["First line<br/>Second line"]`.
+
 ## Supported diagram types
 
 Flowchart, Sequence, Class, and ER diagrams render as native Excalidraw elements. Other types (State, Gantt, etc.) still render but as an embedded SVG image — viewable, not individually editable.
