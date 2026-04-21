@@ -1,5 +1,4 @@
-Agent-agnostic primitives for clankers. Currently:
+Starter files for clankers. Currently:
 
 - System prompt
-- MCP servers
 - Skills
